@@ -1,0 +1,225 @@
+---
+title: "Euch sat summary plot"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+Plotting Rsp-like coordinates across the X chromosome. Reference is X of D. melanogaster R6.
+
+```{r ecgo=FALSE}
+library(karyoploteR)
+library(regioneR)
+library(GenomicRanges) 
+library(rtracklayer) 
+library(IRanges) 
+
+#input files
+#rsp<-read.table("~/Dropbox/THESIS/paper3_code/Fig9_summary.fig/RSP_CLUSTER_INFO_SUMMARY.short.bed.txt",header=T)
+#s1688<-read.table("~/Dropbox/THESIS/paper3_code/Fig9_summary.fig/s1688_CLUSTER_INFO_SUMMARY.short.bed.txt",header=T)
+rsp<-read.table("~/Dropbox/X_satellite_paper/Figures/New_coordinates_all_files/Fig9_summary.fig/RSP_CLUSTER_INFO_SUMMARY.short.bed.converted.txt",header=T)
+s1688<-read.table("~/Dropbox/X_satellite_paper/Figures/New_coordinates_all_files/Fig9_summary.fig/s1688_CLUSTER_INFO_SUMMARY.short.bed.converted.txt",header=T)
+
+
+#create subsets
+ sim=subset(rsp,species=="sim" & Repeats>3)
+sec=subset(rsp,species=="sech" & Repeats>3)
+ mau=subset(rsp,species=="mau" & Repeats>3)
+ mel=subset(rsp,species=="mel" & Repeats>3) 
+ pal=subset(rsp,palindrome=="yes" & Repeats>3)
+  pal.sim=subset(rsp,palindrome=="yes" & species=="sim")
+   pal.mau=subset(rsp,palindrome=="yes" & species=="mau")
+    pal.sec=subset(rsp,palindrome=="yes" & species=="sech")
+     pal.mel=subset(rsp,palindrome=="yes" & species=="mel")
+
+  s1688sim=subset(s1688,species=="sim" & Repeats>3)
+s1688sec=subset(s1688,species=="sech" & Repeats>3)
+ s1688mau=subset(s1688,species=="mau" & Repeats>3)
+ s1688mel=subset(s1688,species=="mel" & Repeats>3) 
+ 
+   s1688simall=subset(s1688,species=="sim")
+s1688secall=subset(s1688,species=="sech")
+ s1688mauall=subset(s1688,species=="mau")
+ s1688melall=subset(s1688,species=="mel") 
+
+
+ sim.dead=subset(rsp,species=="sim" & Repeats<4)
+sec.dead=subset(rsp,species=="sech" & Repeats<4)
+ mau.dead=subset(rsp,species=="mau" & Repeats<4)
+ mel.dead=subset(rsp,species=="mel" & Repeats<4) 
+ pal.dead=subset(rsp,palindrome=="yes" & Repeats<4)
+ 
+ s1688sim.dead=subset(s1688,species=="sim" & Repeats<4)
+s1688sec.dead=subset(s1688,species=="sech" & Repeats<4)
+ s1688mau.dead=subset(s1688,species=="mau" & Repeats<4)
+ s1688mel.dead=subset(s1688,species=="mel" & Repeats<4) 
+
+#update 10/18/19 redefine range
+ sim.rsp.distal=(sim$TransCoor)+100
+ sim.rsp.cyto=cbind.data.frame(sim$name,sim$TransCoor,sim.rsp.distal,sim$Repeats,sim$NewCyto)
+ colnames(sim.rsp.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mau.rsp.distal=(mau$TransCoor)+100
+ mau.rsp.cyto=cbind.data.frame(mau$name,mau$TransCoor,mau.rsp.distal,mau$Repeats,mau$NewCyto)
+ colnames(mau.rsp.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ sec.rsp.distal=(sec$TransCoor)+100
+ sec.rsp.cyto=cbind.data.frame(sec$name,sec$TransCoor,sec.rsp.distal,sec$Repeats,sec$NewCyto)
+ colnames(sec.rsp.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mel.rsp.distal=(mel$TransCoor)+100
+ mel.rsp.cyto=cbind.data.frame(mel$name,mel$TransCoor,mel.rsp.distal,mel$Repeats,mel$NewCyto)
+ colnames(mel.rsp.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+
+sim.rsp <- toGRanges(sim.rsp.cyto) 
+mau.rsp <- toGRanges(mau.rsp.cyto)
+sec.rsp <- toGRanges(sec.rsp.cyto)
+mel.rsp <- toGRanges(mel.rsp.cyto)
+
+ sim.rsp.distal=(pal.sim$TransCoor)+100
+ sim.rsp.pal.cyto=cbind.data.frame(pal.sim$name,pal.sim$TransCoor,sim.rsp.distal,pal.sim$Repeats,pal.sim$NewCyto)
+ colnames(sim.rsp.pal.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mau.rsp.distal=(pal.mau$TransCoor)+100
+ mau.rsp.pal.cyto=cbind.data.frame(pal.mau$name,pal.mau$TransCoor,mau.rsp.distal,pal.mau$Repeats,pal.mau$NewCyto)
+ colnames(mau.rsp.pal.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ sec.rsp.distal=(pal.sec$TransCoor)+100
+ sec.rsp.pal.cyto=cbind.data.frame(pal.sec$name,pal.sec$TransCoor,sec.rsp.distal,pal.sec$Repeats,pal.sec$NewCyto)
+ colnames(sec.rsp.pal.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mel.rsp.distal=(mel$TransCoor)+100
+ mel.rsp.pal.cyto=cbind.data.frame(mel$name,mel$TransCoor,mel.rsp.distal,mel$Repeats,mel$NewCyto)
+ colnames(mel.rsp.pal.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+palindrome <- toGRanges(pal)
+palindrome.sim <- toGRanges(sim.rsp.pal.cyto)
+palindrome.sec <- toGRanges(sec.rsp.pal.cyto)
+palindrome.mau <- toGRanges(mau.rsp.pal.cyto)
+palindrome.mel <- toGRanges(mel.rsp.pal.cyto)
+
+
+#format for karyoploter
+
+sim.s1688 <- toGRanges(s1688sim)
+mau.s1688 <- toGRanges(s1688mau)
+sec.s1688 <- toGRanges(s1688sec)
+mel.s1688 <- toGRanges(s1688mel)
+sim.1688.distal=(s1688simall$TransCoor)+100
+ sim.1688.cyto=cbind.data.frame(s1688simall$name,s1688simall$TransCoor,sim.1688.distal,s1688simall$Repeats,s1688simall$NewCyto)
+ colnames(sim.1688.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mau.1688.distal=(s1688mauall$TransCoor)+100
+ mau.1688.cyto=cbind.data.frame(s1688mauall$name,s1688mauall$TransCoor,mau.1688.distal,s1688mauall$Repeats,s1688mauall$NewCyto)
+ colnames(mau.1688.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ sec.1688.distal=(s1688secall$TransCoor)+100
+ sec.1688.cyto=cbind.data.frame(s1688secall$name,s1688secall$TransCoor,sec.1688.distal,s1688secall$Repeats,s1688secall$NewCyto)
+ colnames(sec.1688.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mel.1688.distal=(s1688melall$TransCoor)+100
+ mel.1688.cyto=cbind.data.frame(s1688melall$name,s1688melall$TransCoor,mel.1688.distal,s1688melall$Repeats,s1688melall$NewCyto)
+ colnames(mel.1688.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+sim.s1688all <- toGRanges(sim.1688.cyto)
+mau.s1688all <- toGRanges(mau.1688.cyto)
+sec.s1688all <- toGRanges(sec.1688.cyto)
+mel.s1688all <- toGRanges(mel.1688.cyto)
+
+ sim.rsp.distal=(sim.dead$TransCoor)+100
+ sim.rsp.dead.cyto=cbind.data.frame(sim.dead$name,sim.dead$TransCoor,sim.rsp.distal,sim.dead$Repeats,sim.dead$NewCyto)
+ colnames(sim.rsp.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mau.rsp.distal=(mau.dead$TransCoor)+100
+ mau.rsp.dead.cyto=cbind.data.frame(mau.dead$name,mau.dead$TransCoor,mau.rsp.distal,mau.dead$Repeats,mau.dead$NewCyto)
+ colnames(mau.rsp.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ sec.rsp.distal=(sec.dead$TransCoor)+100
+ sec.rsp.dead.cyto=cbind.data.frame(sec.dead$name,sec.dead$TransCoor,sec.rsp.distal,sec.dead$Repeats,sec.dead$NewCyto)
+ colnames(sec.rsp.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mel.rsp.distal=(mel$TransCoor)+100
+ mel.rsp.dead.cyto=cbind.data.frame(mel$name,mel$TransCoor,mel.rsp.distal,mel$Repeats,mel$NewCyto)
+ colnames(mel.rsp.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+sim.dead.rsp <- toGRanges(sim.rsp.dead.cyto)
+mau.dead.rsp <- toGRanges(mau.rsp.dead.cyto)
+sec.dead.rsp <- toGRanges(sec.rsp.dead.cyto)
+mel.dead.rsp <- toGRanges(mel.rsp.dead.cyto)
+#palindrome.dead <- toGRanges(pal.dead)
+
+sim.1688.distal=(s1688sim.dead$TransCoor)+100
+ sim.1688.dead.cyto=cbind.data.frame(s1688sim.dead$name,s1688sim.dead$TransCoor,sim.1688.distal,s1688sim.dead$Repeats,s1688sim.dead$NewCyto)
+ colnames(sim.1688.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mau.1688.distal=(s1688mau.dead$TransCoor)+100
+ mau.1688.dead.cyto=cbind.data.frame(s1688mau.dead$name,s1688mau.dead$TransCoor,mau.1688.distal,s1688mau.dead$Repeats,s1688mau.dead$NewCyto)
+ colnames(mau.1688.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ sec.1688.distal=(s1688sec.dead$TransCoor)+100
+ sec.1688.dead.cyto=cbind.data.frame(s1688sec.dead$name,s1688sec.dead$TransCoor,sec.1688.distal,s1688sec.dead$Repeats,s1688sec.dead$NewCyto)
+ colnames(sec.1688.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+ 
+ mel.1688.distal=(s1688mel.dead$TransCoor)+100
+ mel.1688.dead.cyto=cbind.data.frame(s1688mel.dead$name,s1688mel.dead$TransCoor,mel.1688.distal,s1688mel.dead$Repeats,s1688mel.dead$NewCyto)
+ colnames(mel.1688.dead.cyto)<-c('name','TransCoor','distalTransCoor','Repeats','NewCyto')
+sim.dead.s1688 <- toGRanges(sim.1688.dead.cyto)
+mau.dead.s1688 <- toGRanges(mau.1688.dead.cyto)
+sec.dead.s1688 <- toGRanges(sec.1688.dead.cyto)
+mel.dead.s1688 <- toGRanges(mel.1688.dead.cyto)
+
+skinny <- getDefaultPlotParams(plot.type=2) 
+skinny$ideogramheight <- 12
+```
+
+
+10/18/19 nice with palindrome as purple +
+```{r}
+kp <- plotKaryotype(genome="dm6",chromosomes=c("chrX"),plot.params =skinny,plot.type=2)
+kpAddBaseNumbers(kp,tick.dist=1000000)
+
+kpPlotRegions(kp, data=mau.dead.rsp,data.panel = 1, r0=0.7,r1=.8, avoid.overlapping=FALSE,col=rgb(red=0,green=0,blue=0,alpha=.2),lty=1)
+kpPlotRegions(kp, data=sec.dead.rsp,data.panel = 1, r0=0.5,r1=.6, avoid.overlapping=FALSE,col=rgb(red=1,green=0,blue=0,alpha=.2),lty=1)
+kpPlotRegions(kp, data=sim.dead.rsp,data.panel = 1, r0=0.3,r1=.4, avoid.overlapping=FALSE,col=rgb(red=0,green=0,blue=1,alpha=.2),lty=1)
+kpPlotRegions(kp, data=mel.dead.rsp,data.panel = 1, r0=0.1,r1=.2, avoid.overlapping=FALSE,col=rgb(red=0,green=1,blue=0,alpha=.2),lty=1)
+
+
+kpPlotRegions(kp, data=mau.rsp,data.panel = 1, r0=0.7,r1=.8, avoid.overlapping=FALSE,col="black")
+kpPoints(kp, data=mau.s1688all,data.panel = 1, r0=0.67,r1=.7,col="grey",y=.67,pch=21,cex=.1)
+kpPlotRegions(kp, data=sec.rsp,data.panel = 1, r0=0.5,r1=.6, avoid.overlapping=FALSE,col="red")
+kpPoints(kp, data=sec.s1688all,data.panel = 1, r0=0.47,r1=.5,col="grey",y=.47,pch=21,cex=.1)
+kpPlotRegions(kp, data=sim.rsp,data.panel = 1, r0=0.3,r1=.4, avoid.overlapping=FALSE,col="blue")
+kpPoints(kp, data=sim.s1688all,data.panel = 1, r0=0.27,r1=.3, col="grey",y=.27,pch=21,cex=.1)
+kpPlotRegions(kp, data=mel.rsp,data.panel = 1, r0=0.1,r1=.2, avoid.overlapping=FALSE,col="green")
+kpPoints(kp, data=mel.s1688all,data.panel = 1, r0=0.07,r1=.1,col="grey",y=.07,pch=21,cex=.1)
+
+```
+;lkj
+```{r}
+kp <- plotKaryotype(genome="dm6",chromosomes=c("chrX"),plot.params =skinny,plot.type=2)
+kpAddBaseNumbers(kp,tick.dist=1000000)
+
+kpPlotRegions(kp, data=mau.dead.rsp,data.panel = 1, r0=0.7,r1=.8, avoid.overlapping=FALSE,col=rgb(red=0,green=0,blue=0,alpha=.2),lty=1)
+kpPlotRegions(kp, data=sec.dead.rsp,data.panel = 1, r0=0.5,r1=.6, avoid.overlapping=FALSE,col=rgb(red=1,green=0,blue=0,alpha=.2),lty=1)
+kpPlotRegions(kp, data=sim.dead.rsp,data.panel = 1, r0=0.3,r1=.4, avoid.overlapping=FALSE,col=rgb(red=0,green=0,blue=1,alpha=.2),lty=1)
+kpPlotRegions(kp, data=mel.dead.rsp,data.panel = 1, r0=0.1,r1=.2, avoid.overlapping=FALSE,col=rgb(red=0,green=1,blue=0,alpha=.2),lty=1)
+kpPoints(kp, data=palindrome.dead,data.panel = 1, r0=.001,r1=.04,col=rgb(red=0,green=0,blue=0,alpha=.2),pch=3,cex=.3,y=.04)
+
+kpPlotRegions(kp, data=mau.rsp,data.panel = 1, r0=0.7,r1=.8, avoid.overlapping=FALSE,col="black")
+kpPoints(kp, data=mau.s1688all,data.panel = 1, r0=0.67,r1=.7,col="grey",y=.67,pch=21,cex=.1)
+kpPlotRegions(kp, data=sec.rsp,data.panel = 1, r0=0.5,r1=.6, avoid.overlapping=FALSE,col="red")
+kpPoints(kp, data=sec.s1688all,data.panel = 1, r0=0.47,r1=.5,col="grey",y=.47,pch=21,cex=.1)
+kpPlotRegions(kp, data=sim.rsp,data.panel = 1, r0=0.3,r1=.4, avoid.overlapping=FALSE,col="blue")
+kpPoints(kp, data=sim.s1688all,data.panel = 1, r0=0.27,r1=.3, col="grey",y=.27,pch=21,cex=.1)
+kpPlotRegions(kp, data=mel.rsp,data.panel = 1, r0=0.1,r1=.2, avoid.overlapping=FALSE,col="green")
+kpPoints(kp, data=mel.s1688all,data.panel = 1, r0=0.07,r1=.1,col="grey",y=.07,pch=21,cex=.1)
+kpPoints(kp, data=palindrome.sim,data.panel = 1, r0=.001,r1=.04,col="blue",pch=3,cex=.3,y=.04)
+kpPoints(kp, data=palindrome.mau,data.panel = 1, r0=.001,r1=.04,col="black",pch=3,cex=.3,y=.04)
+kpPoints(kp, data=palindrome.sec,data.panel = 1, r0=.001,r1=.04,col="red",pch=3,cex=.3,y=.04)
+kpPoints(kp, data=palindrome.mel,data.panel = 1, r0=.001,r1=.04,col="green",pch=3,cex=.3,y=.04)
+```
+

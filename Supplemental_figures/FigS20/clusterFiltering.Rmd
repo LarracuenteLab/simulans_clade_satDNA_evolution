@@ -1,0 +1,85 @@
+---
+title: "clusterFiltering"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## filter rsp likes, size greater than 3 ##
+```{r}
+dsech <- read.table("dsech_X_repeat_clusters_v2.txt", header=TRUE, sep="\t")
+dsim <- read.table("dsim_X_repeat_clusters_v2.txt", header=TRUE, sep="\t")
+dmel <- read.table("dmel_X_repeat_clusters_v2.txt", header=TRUE, sep="\t")
+dsech_f <- dsech[which(dsech$Cluster=="RSP-LIKE" & dsech$Repeats>=3),]
+dsim_f <- dsim[which(dsim$Cluster=="RSP-LIKE" & dsim$Repeats>=3),]
+dmel_f <- dmel[which(dmel$Cluster=="RSP-LIKE" & dmel$Repeats>=3),]
+write.table(dsech_f, file="dsech_f.tsv",sep="\t",row.names=FALSE,col.names=FALSE)
+write.table(dsim_f, file="dsim_f.tsv",sep="\t",row.names=FALSE,col.names=FALSE)
+write.table(dmel_f, file="dmel_f.tsv",sep="\t",row.names=FALSE,col.names=FALSE)
+```
+
+
+
+## reformat distance matrix ##
+## WARNING - UGLY CODE & METHODS ##
+dsim
+```{r}
+ss <- function(x){
+  if(-1 == regexpr('_', x)){
+    return(substring(x, regexpr('X', x)[1]))  
+  } else {
+    temp5 <- substring(x, regexpr('X', x)[1])
+    return(substring(temp5, 0, regexpr('_', temp5)[1]-1))
+  }
+  
+}
+dsim <- read.table("dsim_dist.txt", sep="\t", header = FALSE) # include filler
+temp1 <- t(as.character(t(apply(dsim[1,], 2, FUN=function(x) ss(x)))))
+temp2 <- t(apply(t(as.character(dsim[,1])), 2, FUN=function(x) ss(x)))
+temp3 <- temp1[2:length(temp1)]
+temp4 <- temp2[2:length(temp2)]
+dsim <- read.table("dsim_dist.txt", sep="\t", header=TRUE, row.names = 1) # blank filler
+write.table(dsim, "dsim_dist_ss.txt", row.names = temp4, col.names = temp3, sep="\t")
+```
+dmel - NEED MEL DISTANCE MATRIX
+```{r}
+ss <- function(x){
+  if(-1 == regexpr('_', x)){
+    return(substring(x, regexpr('X', x)[1]))  
+  } else {
+    temp5 <- substring(x, regexpr('X', x)[1])
+    return(substring(temp5, 0, regexpr('_', temp5)[1]-1))
+  }
+  
+}
+dsim <- read.table("dmel_rsp-like_Xchrom_align.dist", sep="\t", header = FALSE) # include filler
+temp1 <- t(as.character(t(apply(dsim[1,], 2, FUN=function(x) ss(x)))))
+temp2 <- t(apply(t(as.character(dsim[,1])), 2, FUN=function(x) ss(x)))
+temp3 <- temp1[2:length(temp1)]
+temp4 <- temp2[2:length(temp2)]
+dsim <- read.table("dmel_rsp-like_Xchrom_align.dist", sep="\t", header=TRUE, row.names = 1) # blank filler
+write.table(dsim, "dmel_dist_ss.txt", row.names = temp4, col.names = temp3, sep="\t")
+```
+sech
+```{r}
+ss <- function(x){
+  if(-1 == regexpr('_', x)){
+    return(substring(x, regexpr('X', x)[1]))  
+  } else {
+    temp5 <- substring(x, regexpr('X', x)[1])
+    return(substring(temp5, 0, regexpr('_', temp5)[1]-1))
+  }
+  
+}
+dsech <- read.table("dsech_dist.txt", sep="\t", header = FALSE) # include filler
+temp1 <- t(as.character(t(apply(dsech[1,], 2, FUN=function(x) ss(x)))))
+temp2 <- t(apply(t(as.character(dsech[,1])), 2, FUN=function(x) ss(x)))
+temp3 <- temp1[2:length(temp1)]
+temp4 <- temp2[2:length(temp2)]
+dsech <- read.table("dsech_dist.txt", sep="\t", header=TRUE, row.names = 1) # blank filler
+write.table(dsech, "dsech_dist_ss.txt", row.names = temp4, col.names = temp3, sep="\t")
+```
+
+

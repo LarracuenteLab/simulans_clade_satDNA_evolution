@@ -1,0 +1,707 @@
+---
+title: "quantileMapping_05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+this is for comparing quantile differences (percent vs #) in sim 
+
+## LOAD DATA ##
+```{r}
+mauDataRsp  <- read.table("dmau_x_rsp_q1_q1_f4_03.tsv",  header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+melDataRsp  <- read.table("dmel_x_rsp_q1_q1_f4_03.tsv",  header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+simDataRsp  <- read.table("dsim_x_rsp_q1_q1_f4_03.tsv",  header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+sechDataRsp <- read.table("dsech_x_rsp_q1_q1_f4_03.tsv", header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+
+mauData1.688  <- read.table("dmau_x_1.688_q1_q1_f4_03.tsv",  header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+melData1.688  <- read.table("dmel_x_1.688_q1_q1_f4_03.tsv",  header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+simData1.688  <- read.table("dsim_x_1.688_q1_q1_f4_03.tsv",  header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+sechData1.688 <- read.table("dsech_x_1.688_q1_q1_f4_03.tsv", header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE) 
+```
+
+Add a lower estimate of maxDy since NaNs are included
+```{r}
+addMaxDy <- function(df){
+  df$maxDyLowerEst <- pmax(
+  abs(df$first.middle - df$middle.middle),
+  abs(df$middle.last - df$middle.middle),
+  na.rm = TRUE
+)
+  return(df)
+}
+```
+
+```{r}
+mauData1.688 <- addMaxDy(mauData1.688)
+melData1.688 <- addMaxDy(melData1.688)
+simData1.688 <- addMaxDy(simData1.688)
+sechData1.688 <- addMaxDy(sechData1.688)
+
+mauDataRsp <- addMaxDy(mauDataRsp)
+melDataRsp <- addMaxDy(melDataRsp)
+simDataRsp <- addMaxDy(simDataRsp)
+sechDataRsp <- addMaxDy(sechDataRsp)
+```
+
+```{r}
+write.csv(mauData1.688, "mauData1.688.csv")
+write.csv(melData1.688, "melData1.688.csv")
+write.csv(simData1.688, "simData1.688.csv")
+write.csv(sechData1.688, "sechData1.688.csv")
+
+write.csv(mauDataRsp, "mauDataRsp.csv")
+write.csv(melDataRsp, "melDataRsp.csv")
+write.csv(simDataRsp, "simDataRsp.csv")
+write.csv(sechDataRsp, "sechDataRsp.csv")
+```
+
+```{r}
+boxplot(melDataRsp$maxDyLowerEst, melData1.688$maxDyLowerEst,mauDataRsp$maxDyLowerEst, mauData1.688$maxDyLowerEst, simDataRsp$maxDyLowerEst, simData1.688$maxDyLowerEst, sechDataRsp$maxDyLowerEst, sechData1.688$maxDyLowerEst, names=c("mel Rsp", "mel 1.688", "mau rsp", "mau 1.688", "sim rsp", "sim 1.688", "sech rsp", "sech 1.688"), col=c("blue", "darkgreen"), ylab="max dy, lower estimate")
+```
+
+
+
+## TRIM DATA##
+### only use this trim when plotting the line plots , do not use for heatmap###
+```{r}
+mauDataRsp  <- rbind(mauDataRsp[1,],   mauDataRsp[complete.cases(mauDataRsp), ])
+melDataRsp  <- rbind(melDataRsp[1,],   melDataRsp[complete.cases(melDataRsp), ])
+simDataRsp  <- rbind(simDataRsp[1,],   simDataRsp[complete.cases(simDataRsp), ])
+sechDataRsp <- rbind(sechDataRsp[1,], sechDataRsp[complete.cases(sechDataRsp), ])
+
+mauData1.688  <- rbind(mauData1.688[1,],   mauData1.688[complete.cases(mauData1.688), ])
+melData1.688  <- rbind(melData1.688[1,],   melData1.688[complete.cases(melData1.688), ])
+simData1.688  <- rbind(simData1.688[1,],   simData1.688[complete.cases(simData1.688), ])
+sechData1.688 <- rbind(sechData1.688[1,], sechData1.688[complete.cases(sechData1.688), ])
+```
+
+
+
+## PLOTTING FUNCTIONS ##
+```{r}
+library(ggplot2)
+library(cowplot)
+library(reshape2)
+library(shadowtext)
+
+plotGridGrid2 <- function(dat1, name1, dat2, name2, dat3, name3, dat4, name4, c1 = "#003153", c2 = "deepskyblue"){
+  dat1 <- round(colMeans(dat1[-c(1), c(1:9)], na.rm = TRUE), 4)
+  dat2 <- round(colMeans(dat2[-c(1), c(1:9)], na.rm = TRUE), 4)
+  dat3 <- round(colMeans(dat3[-c(1), c(1:9)], na.rm = TRUE), 4)
+  dat4 <- round(colMeans(dat4[-c(1), c(1:9)], na.rm = TRUE), 4)
+  
+  from <- c(rep("first", 3), rep("middle", 3), rep("last", 3))
+  to <- c(rep(c("first", "middle", "last"), 3))
+  
+  rng <- range(dat1, dat2, dat3, dat4)
+  
+  lab <- "genetic\ndistance"
+  
+  tempavg1 <- matrix(dat1, nrow=9, byrow=TRUE)
+  avg1 <- data.frame(tempavg1)
+  colnames(avg1) <- "gen"
+  avg1$from <- from
+  avg1$to <- to
+  
+  tempavg2 <- matrix(dat2, nrow=9, byrow=TRUE)
+  avg2 <- data.frame(tempavg2)
+  colnames(avg2) <- "gen"
+  avg2$from <- from
+  avg2$to <- to
+  
+  tempavg3 <- matrix(dat3, nrow=9, byrow=TRUE)
+  avg3 <- data.frame(tempavg3)
+  colnames(avg3) <- "gen"
+  avg3$from <- from
+  avg3$to <- to
+  
+  tempavg4 <- matrix(dat4, nrow=9, byrow=TRUE)
+  avg4 <- data.frame(tempavg4)
+  colnames(avg4) <- "gen"
+  avg4$from <- from
+  avg4$to <- to
+  
+  color1 <- "#003153"
+  color2 <- "deepskyblue"
+  cc <- c(color1, color2)
+  f <- 6
+  
+  q <- ggplot(data = avg1, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name1) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+  
+  w <- ggplot(data = avg2, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name2) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+   
+  e <- ggplot(data = avg3, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name3) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+  
+   r <- ggplot(data = avg4, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name4) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+   
+  tiff("Plot1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(q)
+  dev.off()
+  
+  tiff("Plot1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(w)
+  dev.off()
+  
+  tiff("Plot1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(e)
+  dev.off()
+  
+  tiff("Plot1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(r)
+  dev.off()
+  
+}
+
+plotGrid <- function(dat, name){
+  dat$band <- NULL
+  tempdata <- round(dat, 4)
+  title <- name
+  avgmat <- matrix(tempdata[1,1:9], nrow=3, byrow=TRUE)
+  from <- c(rep("first", 3), rep("middle", 3), rep("last", 3))
+  to <- c(rep(c("first", "middle", "last"), 3))
+  avg <- data.frame(as.numeric(tempdata[1,1:9]))
+  colnames(avg) <- "gen"
+  avg$from <- from
+  avg$to <- to
+  ggplot(data = avg, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) + 
+    geom_tile() +
+    geom_text(aes(from, to, label = gen), color = "black", size = 4) +
+    ggtitle(title)
+  cow1 <- ggplot(data = avg, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) + 
+    geom_tile() +
+    geom_text(aes(from, to, label = gen), color = "black", size = 4) +
+    ggtitle(title)
+  return(cow1)
+}
+
+plotGridGrid <- function(c1, c2, c3, c4){
+  plot_grid(c1, c2, c3, c4, labels = NULL)
+}
+
+
+plotAllComparisons <- function(dat, name, xl = c(0.9, 7.5), yl=c(0,.21)){
+  data2 <- dat[-c(1),]
+  title <- name
+  p=19
+  n <- dim(data2)[1]
+  cc <- rainbow(n)
+  j <- runif(n, min=-0.2, max=0.2)
+  inch <- 1/3
+  
+  #ylim = c(0,1.1*max(data2[,-c(10,11)]))
+  plot(x=NULL, xlim=xl, ylim = yl, xaxt='n', ylab="genetic distance", main = title)
+  
+  with(data2, symbols(x=rep(1,n)+j, y=data2$first.first, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc, add=TRUE))
+  
+  with(data2, symbols(x=rep(2,n)+j, y=data2$first.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(1,n)+j, y0=data2$first.first, x1=rep(2,n)+j, y1=data2$first.middle)
+  
+  with(data2, symbols(x=rep(3,n)+j, y=data2$first.last, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(2,n)+j, y0=data2$first.middle, x1=rep(3,n)+j, y1=data2$first.last)
+  
+  with(data2, symbols(x=rep(4,n)+j, y=data2$middle.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(3,n)+j, y0=data2$first.last, x1=rep(4,n)+j, y1=data2$middle.middle)
+  
+  with(data2, symbols(x=rep(5,n)+j, y=data2$middle.last, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(4,n)+j, y0=data2$middle.middle, x1=rep(5,n)+j, y1=data2$middle.last)
+  
+  with(data2, symbols(x=rep(6,n)+j, y=data2$last.last, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(5,n)+j, y0=data2$middle.last, x1=rep(6,n)+j, y1=data2$last.last)
+  
+  #legend("topright", legend=c("1: first.first" ,"2: first.middle" ,"3: first.last","4: middle.middle" ,"5: middle.last" ,  "6: last.last"  ), lty=1:2, cex=0.8, bg="transparent")
+  axis(side=1, at=1:6, labels = c("1: first.first" ,"2: first.middle" ,"3: first.last","4: middle.middle" ,"5: middle.last" ,  "6: last.last"  ), las=0)
+  ccc <- seq(1, n, 10)
+  #legend(x=6.5, y=yl[2], legend=data2$band[ccc], col=cc[ccc], lty=1, lwd=9, cex=.6)
+}
+
+
+plotThreeComparisons <- function(dat, name, xl = c(0.9, 4), yl=c(0,.21)){
+  data2 <- dat[-c(1),]
+  title <- name
+  p=19
+  n <- dim(data2)[1]
+  cc <- rainbow(n)
+  j <- runif(n, min=-0.2, max=0.2)
+  inch <- 1/3
+  
+  #ylim = c(0,1.1*max(data2[,-c(10,11)]))
+  plot(x=NULL, xlim=xl, ylim = yl, xaxt='n', ylab="genetic distance", main = title)
+  
+  with(data2, symbols(x=rep(1,n)+j, y=data2$first.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc, add=TRUE))
+  
+  with(data2, symbols(x=rep(2,n)+j, y=data2$middle.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(1,n)+j, y0=data2$first.middle, x1=rep(2,n)+j, y1=data2$middle.middle)
+  
+  with(data2, symbols(x=rep(3,n)+j, y=data2$last.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(2,n)+j, y0=data2$middle.middle, x1=rep(3,n)+j, y1=data2$last.middle)
+  #legend("topright", legend=c("1: first.first" ,"2: first.middle" ,"3: first.last","4: middle.middle" ,"5: middle.last" ,  "6: last.last"  ), lty=1:2, cex=0.8, bg="transparent")
+  axis(side=1, at=1:3, labels = c("1: first.middle" ,"2: middle.middle" ,"3: middle.last"), las=0)
+  legend(x=3.5, y=yl[2],legend=data2$band, col=cc, lty=1, lwd=9, cex=.6)
+}
+
+plotdyhist <- function(xlim, dat, name){
+  data2 <- dat[-c(1),]
+  title <- name
+  p=19
+  n <- dim(data2)[1]
+  cc <- rainbow(n)
+  j <- runif(n, min=-0.2, max=0.2)
+  inch <- 1/3
+  
+  for(i in 1:n){
+    data2$maxdy[i] <- max(abs(data2$first.middle[i] - data2$middle.middle[i]), abs(data2$middle.middle[i] - data2$middle.last[i]))
+  }
+  hist(data2$maxd, main=name, col="gray90", xlim = xlim, xlab=paste("max(|dy|)   n =", n))
+}
+
+plotdyhists <- function(xlim, dat1, name1, dat2, name2, dat3, name3, dat4, name4, parmf = c(2,2)){
+  par(mfrow=parmf)
+  plotdyhist(xlim, dat1, name1)
+  plotdyhist(xlim, dat2, name2)
+  plotdyhist(xlim, dat3, name3)
+  plotdyhist(xlim, dat4, name4)
+}
+
+plotAge <- function(dat, name="max dy", threshold=c(0.4,0.8), oneRow = FALSE, exact = FALSE){
+  data2 <- dat[-c(1),]
+  title <- name
+  p=19
+  n <- dim(data2)[1]
+  cc <- rainbow(n)
+  j <- runif(n, min=-0.2, max=0.2)
+  inch <- 1/3
+  
+  for(i in 1:n){
+    data2$maxdy[i] <- max(abs(data2$first.middle[i] - data2$middle.middle[i]), abs(data2$middle.middle[i] - data2$middle.last[i]))
+  }
+  #hist(data2$maxd, main=name, col="gray90")
+  ages <- sort(data2$maxdy)
+  
+  if(exact){
+    oldThresh <- threshold[2]
+    medThresh <- threshold[1]
+  } else {
+    oldThresh <- ages[(n*threshold[2])]
+    medThresh <- ages[(n*threshold[1])]  
+  }
+  
+  for(i in 1:n){
+    if(data2$maxdy[i] > oldThresh){
+      data2$ageBin[i] <- "old"
+    } else if(data2$maxdy[i] > medThresh){
+      data2$ageBin[i] <-"medium"
+    } else {
+      data2$ageBin[i] <- "young"
+    }
+  }
+  
+  if(oneRow){par(mfrow=c(1,3))} 
+  
+  oldDat <- dat[(which(data2$ageBin=="old")+1),]
+  plotThreeComparisons(oldDat, paste("old", name))
+
+  medDat <- dat[(which(data2$ageBin=="medium")+1),]
+  plotThreeComparisons(medDat, paste("medium", name))
+
+  youngDat <- dat[(which(data2$ageBin=="young")+1),]
+  plotThreeComparisons(youngDat, paste("young", name))
+  
+}
+
+plotAge_helper <- function(dat, name="max dy", threshold=c(0.4,0.8), oneRow = FALSE, exact = FALSE){
+  data2 <- dat[-c(1),]
+  title <- name
+  p=19
+  n <- dim(data2)[1]
+  cc <- rainbow(n)
+  j <- runif(n, min=-0.2, max=0.2)
+  inch <- 1/3
+  
+  for(i in 1:n){
+    data2$maxdy[i] <- max(abs(data2$first.middle[i] - data2$middle.middle[i]), abs(data2$middle.middle[i] - data2$middle.last[i]))
+  }
+  #hist(data2$maxd, main=name, col="gray90")
+  ages <- sort(data2$maxdy)
+  
+  if(exact){
+    oldThresh <- threshold[2]
+    medThresh <- threshold[1]
+  } else {
+    oldThresh <- ages[(n*threshold[2])]
+    medThresh <- ages[(n*threshold[1])]  
+  }
+  
+  for(i in 1:n){
+    if(data2$maxdy[i] > oldThresh){
+      data2$ageBin[i] <- "old"
+    } else if(data2$maxdy[i] > medThresh){
+      data2$ageBin[i] <-"medium"
+    } else {
+      data2$ageBin[i] <- "young"
+    }
+  }
+  
+  if(oneRow){par(mfrow=c(1,3))} 
+  
+  oldDat <- dat[(which(data2$ageBin=="old")+1),]
+  if(length(oldDat != 0)){
+    plotThreeComparisons_helper(oldDat, paste("old", name))
+  } else {
+    xrange=c(0,3.2)
+    yrange=c(0, .21)
+    plot(xrange, yrange, type="n")
+  }
+  
+  medDat <- dat[(which(data2$ageBin=="medium")+1),]
+  if(length(medDat != 0)){
+    plotThreeComparisons_helper(medDat, paste("medium", name))
+  } else {
+    xrange=c(0,3.2)
+    yrange=c(0, .21)
+    plot(xrange, yrange, type="n")
+  }
+    
+  youngDat <- dat[(which(data2$ageBin=="young")+1),]
+  if(length(youngDat != 0)){
+    plotThreeComparisons_helper(youngDat, paste("young", name))
+  } else {
+    xrange=c(0,3.2)
+    yrange=c(0, .21)
+    plot(xrange, yrange, type="n")
+  }
+
+  # medDat <- dat[(which(data2$ageBin=="medium")+1),]
+  # plotThreeComparisons_helper(medDat, paste("medium", name))
+  # 
+  # youngDat <- dat[(which(data2$ageBin=="young")+1),]
+  # plotThreeComparisons_helper(youngDat, paste("young", name))
+  
+}
+
+plotThreeComparisons_helper <- function(dat, name, xl = c(0.9, 3.2), yl=c(0,.21)){
+  data2 <- dat[-c(1),]
+  title <- name
+  p=19
+  n <- dim(data2)[1]
+  cc <- rainbow(n)
+  j <- runif(n, min=-0.2, max=0.2)
+  inch <- 1/3
+  
+  #ylim = c(0,1.1*max(data2[,-c(10,11)]))
+  plot(x=NULL, xlim=xl, ylim = yl, xaxt='n', ylab="genetic distance", main = title, xlab=NULL)
+  
+  with(data2, symbols(x=rep(1,n)+j, y=data2$first.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc, add=TRUE))
+  
+  with(data2, symbols(x=rep(2,n)+j, y=data2$middle.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(1,n)+j, y0=data2$first.middle, x1=rep(2,n)+j, y1=data2$middle.middle)
+  
+  with(data2, symbols(x=rep(3,n)+j, y=data2$last.middle, circles=sqrt(data2$size/pi), inches = inch, ann=FALSE, fg=NULL, bg=cc,  add=TRUE))
+  segments(x0=rep(2,n)+j, y0=data2$middle.middle, x1=rep(3,n)+j, y1=data2$last.middle)
+  #legend("topright", legend=c("1: first.first" ,"2: first.middle" ,"3: first.last","4: middle.middle" ,"5: middle.last" ,  "6: last.last"  ), lty=1:2, cex=0.8, bg="transparent")
+  axis(side=1, at=1:3, labels = c("1: first.middle" ,"2: middle.middle" ,"3: middle.last"), las=0)
+}
+
+
+megaAgePlot <- function(dat1, name1, dat2, name2, dat3, name3, dat4, name4, threshold=c(0.2,0.8), exact=FALSE, dims = c(3,4)){
+  par(mfcol=dims)
+  plotAge_helper(dat1, name1, threshold = threshold, exact = exact)
+  plotAge_helper(dat2, name2, threshold = threshold, exact = exact)
+  plotAge_helper(dat3, name3, threshold = threshold, exact = exact)
+  plotAge_helper(dat4, name4, threshold = threshold, exact = exact)
+  
+}
+
+```
+
+
+
+```{r}
+plotGridGrid2 <- function(dat1, name1, dat2, name2, dat3, name3, dat4, name4, c1 = "#003153", c2 = "deepskyblue"){
+  dat1 <- round(colMeans(dat1[-c(1), c(1:9)], na.rm = TRUE), 4)
+  dat2 <- round(colMeans(dat2[-c(1), c(1:9)], na.rm = TRUE), 4)
+  dat3 <- round(colMeans(dat3[-c(1), c(1:9)], na.rm = TRUE), 4)
+  dat4 <- round(colMeans(dat4[-c(1), c(1:9)], na.rm = TRUE), 4)
+  
+  from <- c(rep("first", 3), rep("middle", 3), rep("last", 3))
+  to <- c(rep(c("first", "middle", "last"), 3))
+  
+  rng <- range(dat1, dat2, dat3, dat4)
+  
+  lab <- "genetic\ndistance"
+  
+  tempavg1 <- matrix(dat1, nrow=9, byrow=TRUE)
+  avg1 <- data.frame(tempavg1)
+  colnames(avg1) <- "gen"
+  avg1$from <- from
+  avg1$to <- to
+  
+  tempavg2 <- matrix(dat2, nrow=9, byrow=TRUE)
+  avg2 <- data.frame(tempavg2)
+  colnames(avg2) <- "gen"
+  avg2$from <- from
+  avg2$to <- to
+  
+  tempavg3 <- matrix(dat3, nrow=9, byrow=TRUE)
+  avg3 <- data.frame(tempavg3)
+  colnames(avg3) <- "gen"
+  avg3$from <- from
+  avg3$to <- to
+  
+  tempavg4 <- matrix(dat4, nrow=9, byrow=TRUE)
+  avg4 <- data.frame(tempavg4)
+  colnames(avg4) <- "gen"
+  avg4$from <- from
+  avg4$to <- to
+  
+  color1 <- "#003153"
+  color2 <- "deepskyblue"
+  cc <- c(color1, color2)
+  f <- 6
+  
+  q <- ggplot(data = avg1, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name1) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+  
+  w <- ggplot(data = avg2, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name2) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+   
+  e <- ggplot(data = avg3, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name3) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+  
+   r <- ggplot(data = avg4, aes(x=factor(from, level=c("first", "middle", "last")), y=factor(to, level=c("last", "middle", "first")), fill=gen)) +     geom_tile() +    geom_shadowtext(aes(from, to, label = gen, color = "black"),color="white", bg.color="black", size = f) +    ggtitle(name4) +     scale_fill_gradientn(colors = cc, limits=rng) + xlab("") + ylab("")
+   
+  tiff("Plot1.1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(q)
+  dev.off()
+  
+  tiff("Plot2.1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(w)
+  dev.off()
+  
+  tiff("Plot3.1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(e)
+  dev.off()
+  
+  tiff("Plot4.1.PNG", width = 5, height = 5, units = 'in', res = 300)
+  print(r)
+  dev.off()
+  
+}
+```
+
+
+## POSTER PLOTS ##
+```{r}
+plotGridGrid2(mauData1.688, "mauritania 1.688", melData1.688, "melanogaster 1.688",sechData1.688, "sechelia 1.688",simData1.688, "simulans 1.688")
+plotGridGrid2(mauDataRsp, "mauritania Rsp", melDataRsp, "melanogaster Rsp",sechDataRsp, "sechelia Rsp",simDataRsp, "simulans Rsp")
+```
+```{r}
+plotThreeComparisons(mauData1.688, "mauritania 1.688", yl=range(mauData1.688[-c(1), c(1:9)]), xl=c(0.8,3.2))
+plotThreeComparisons(melData1.688, "melanogaster 1.688", yl=range(melData1.688[-c(1), c(1:9)]), xl=c(0.8,3.2))
+plotThreeComparisons(simData1.688, "simulans 1.688", yl=range(simData1.688[-c(1), c(1:9)]), xl=c(0.8,3.2))
+plotThreeComparisons(sechData1.688, "sechelia 1.688", yl=range(sechData1.688[-c(1), c(1:9)]), xl=c(0.8,3.2))
+
+plotThreeComparisons(mauDataRsp, "mauritania rsp", yl=range(mauDataRsp[-c(1), c(1:9)]), xl=c(0.8,3.2))
+plotThreeComparisons(melDataRsp, "melanogaster rsp", yl=range(melDataRsp[-c(1), c(1:9)]), xl=c(0.8,3.2))
+plotThreeComparisons(simDataRsp, "simulans rsp", yl=range(simDataRsp[-c(1), c(1:9)]), xl=c(0.8,3.2))
+plotThreeComparisons(sechDataRsp, "sechelia rsp", yl=range(sechDataRsp[-c(1), c(1:9)]), xl=c(0.8,3.2))
+```
+
+
+```{r}
+x <- c(0.8, 3.2)
+x <- c(0.8, 3.8)
+y <- c(0, 1.16)
+
+png("sim1688Three_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(simData1.688, "simulans 1.688", xl=x, yl=y)
+dev.off()
+
+png("mau1688Three_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(mauData1.688, "mauritiana 1.688", xl=x, yl=y)
+dev.off()
+
+png("sech1688Three_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(sechData1.688, "sechellia 1.688", xl=x, yl=y)
+dev.off()
+
+png("mel1688Three_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(melData1.688, "melanogaster 1.688", xl=x, yl=y)
+dev.off()
+
+png("simRspThree_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(simDataRsp, "simulans Rsp", xl=x, yl=y)
+dev.off()
+
+png("mauRspThree_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(mauDataRsp, "mauritania Rsp", xl=x, yl=y)
+dev.off()
+
+png("sechRspThree_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(sechDataRsp, "sechellia Rsp", xl=x, yl=y)
+dev.off()
+
+png("melRspThree_v3.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(melDataRsp, "melanogaster Rsp", xl=x, yl=y)
+dev.off()
+```
+
+```{r}
+tiff("sim1688Three2.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(simData1.688, "simulans 1.688", xl=c(0.8, 3.2), yl=c(0,1.1))
+dev.off()
+
+tiff("mau1688Three2.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(mauData1.688, "mauritiana 1.688", xl=c(0.8, 3.2), yl=c(0,1.16))
+dev.off()
+
+tiff("simRspThree2.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(simDataRsp, "simulans Rsp", xl=c(0.8, 3.2), yl=c(0,1.16))
+dev.off()
+
+tiff("mauRspThree2.png",width=6,height=4.5,units="in",res=300)
+plotThreeComparisons(mauDataRsp, "mauritania Rsp", xl=c(0.8, 3.2), yl=c(0,1.16))
+dev.off()
+```
+plotAllComparisons(simData1.688, "simulans 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+tiff("sech1688six.png",width=6,height=4.5,units="in",res=300)
+plotAllComparisons(sechData1.688, "sechelia 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+plotAllComparisons(melData1.688, "melanogaster 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+plotAllComparisons(mauData1.688, "mauritania 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+
+
+## 1.688 plots ##
+```{r}
+tiff("sim1688six.png",width=6,height=4.5,units="in",res=300)
+plotAllComparisons(simData1.688, "simulans 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+dev.off()
+
+tiff("sech1688six.png",width=6,height=4.5,units="in",res=300)
+plotAllComparisons(sechData1.688, "sechelia 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+dev.off()
+
+tiff("mel1688six.png",width=6,height=4.5,units="in",res=300)
+plotAllComparisons(melData1.688, "melanogaster 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+dev.off()
+
+tiff("mau1688six.png",width=6,height=4.5,units="in",res=300)
+plotAllComparisons(mauData1.688, "mauritania 1.688", xl=c(0.8, 6.2), yl=c(0,1.16))
+dev.off()
+
+``` 
+
+```{r}
+plotAllComparisons(simData1.688, "sim x 1.688 q1 q1 f4", xl=c(0.8, 6.2), yl=c(0,1.16))
+plotAllComparisons(sechData1.688, "sech x 1.688 q1 q1 f4", xl=c(0.8, 6.2), yl=c(0,1.16))
+plotAllComparisons(melData1.688, "mel x 1.688 q1 q1 f4", xl=c(0.8, 6.2), yl=c(0,1.16))
+plotAllComparisons(mauData1.688, "mau x 1.688 q1 q1 f4", xl=c(0.8, 6.2), yl=c(0,1.16))
+``` 
+
+## rsp plots ##
+```{r}
+mauData <- read.table("dmau_QM_q20_q80_f3_03.txt", header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE)
+simData <- read.table("dsim_QM_q20_q80_f3_03.txt", header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE)
+sechData <- read.table("dsech_QM_q20_q80_f3_03.txt", header = TRUE, sep = "\t",strip.white=TRUE,stringsAsFactors=FALSE)
+melData <- read.table("dmel_QM_q20_q80_f3.txt_03", header = TRUE, sep = "\t",strip.white=TRUE,stringsAsFactors=FALSE)
+
+cow1 <- plotGrid(mauData, "mau rsp x 20%/80% f3")
+cow2 <- plotGrid(simData, "sim rsp x 20%/80% f3")
+cow3 <- plotGrid(sechData, "sech rsp x 20%/80% f3")
+cow4 <- plotGrid(melData, "mel rsp x 20%/80% f3")
+plotGridGrid(cow1, cow2, cow3, cow4)
+
+
+plotAllComparisons(simData, "sim x rsp 20% 80% f3")
+plotAllComparisons(sechData, "sech x rsp 20% 80% f3")
+plotAllComparisons(melData, "mel x rsp 20% 80% f3")
+plotAllComparisons(mauData, "mau x rsp 20% 80% f3")
+
+
+plotThreeComparisons(simData, "sim x rsp 20% 80% f3")
+plotThreeComparisons(sechData, "sech x rsp 20% 80% f3")
+plotThreeComparisons(melData, "mel x rsp 20% 80% f3")
+plotThreeComparisons(mauData, "mau x rsp 20% 80% f3")
+
+plotdyhists(c(0, .21), simData, "sim x rsp 20% 80% f3", sechData, "sech x rsp 20% 80% f3", melData, "mel x rsp 20% 80% f3", mauData, "mau x rsp 20% 80% f3")
+```
+
+thoughts: i should probably get the youngest first, then the middle, then the old so that I have data to subset? I need a better way of subsetting data so that there's no null pointers. Also, need to put a % filter AND an exact filter on what counts as old, so that I can compare between species. 
+
+## PLOTTING AGE ##
+```{r}
+plotAge(melData, "mel x 1.688 15% 85% f3")
+megaAgePlot(melData, "mel x 1.688 15% 85% f3", sechData, "sech x 1.688 15% 85% f3", simData, "sim x 1.688 15% 85% f3",  mauData, "mau x 1.688 15% 85% f3", c(0.2, 0.8))
+
+megaAgePlot(melData, "mel x 1.688 15% 85% f3", sechData, "sech x 1.688 15% 85% f3", simData, "sim x 1.688 15% 85% f3",  mauData, "mau x 1.688 15% 85% f3", threshold = c(0.01, 0.03), exact=TRUE)
+
+# plot rsp vs 1.688
+sechData1688 <- read.table("dsech_x_1.688_q15_q85_f3_01.txt", header = TRUE, sep = "\t", strip.white=TRUE, stringsAsFactors=FALSE)
+sechDataRSP <- read.table("dsech_QM_q20_q80_f3_03.txt", header = TRUE, sep = "\t",strip.white=TRUE,stringsAsFactors=FALSE)
+megaAgePlot(dims = c(3,2), dat1 = sechData1688, name1 =  "dsech_x_1.688_q15_q85_f3_01.txt", dat2 = sechDataRSP, name2 = "dsech_QM_q20_q80_f3_03.txt", dat3 = sechData1688, name3 =  "dsech_x_1.688_q15_q85_f3_01.txt", dat4 = sechDataRSP, name4 = "dsech_QM_q20_q80_f3_03.txt",  threshold = c(0.01, 0.03), exact=TRUE)
+```
+
+
+
+
+```{r}
+melrspDist <- read.table("maps_and_stuff//dmel_rsp_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+maurspDist <- read.table("maps_and_stuff//dmau_rsp_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+simrspDist <- read.table("maps_and_stuff//dsim_rsp_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+sechrspDist <- read.table("maps_and_stuff//dsech_rsp_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+
+mel1688Dist <- read.table("maps_and_stuff//dmel_1.688_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+mau1688Dist <- read.table("maps_and_stuff//dmau_1.688_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+sim1688Dist <- read.table("maps_and_stuff//dsim_1.688_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+sech1688Dist <- read.table("maps_and_stuff//dsech_1.688_dist.tsv", header = TRUE, sep="\t", row.names = 1)
+
+melrspClust <- read.table("maps_and_stuff//dmel_rsp_clust.tsv", header=FALSE, sep="\t")
+maurspClust <- read.table("maps_and_stuff//dmau_rsp_clust.tsv", header=FALSE, sep="\t")
+simrspClust <- read.table("maps_and_stuff//dsim_rsp_clust.tsv", header=FALSE, sep="\t")
+sechrspClust <- read.table("maps_and_stuff//dsech_rsp_clust.tsv", header=FALSE, sep="\t")
+
+mel1688Clust <- read.table("maps_and_stuff//dmel_1.688_clust.tsv", header=FALSE, sep="\t")
+mau1688Clust <- read.table("maps_and_stuff//dmau_1.688_clust.tsv", header=FALSE, sep="\t")
+sim1688Clust <- read.table("maps_and_stuff//dsim_1.688_clust.tsv", header=FALSE, sep="\t")
+sech1688Clust <- read.table("maps_and_stuff//dsech_1.688_clust.tsv", header=FALSE, sep="\t")
+
+#takes the distance matrix, the start coordinate of the first monomer, and the end coordinate of the last monomer
+plotHeatMap <- function(dat, start, end){
+  library("ggplot2")
+  library("reshape2")
+  
+  keys <- row.names(dat)
+  coords <- as.numeric(substring(keys, 3, regexpr("-", keys)-1))
+  startIndex <- 1
+  endIndex <- 1
+  while(start > coords[startIndex]){ startIndex <- startIndex + 1}
+  while(end > coords[endIndex+1]){ endIndex <- endIndex + 1}
+  mydata <- dat[startIndex:endIndex, startIndex:endIndex]
+  #return(mydata)
+  
+  cormat <- round(cor(mydata),2)
+  melted_cormat <- melt(cormat)
+  print(ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + geom_tile())
+}
+
+plotAllArrays <- function(dist, clust){
+  for(i in 1:(nrow(clust)-1) ){
+    plotHeatMap(dist, clust$V8[i], clust$V11[i])
+  }
+}
+
+# plotHeatMap(mel1688Dist, 2426474, 2427088)
+# plotHeatMap(mel1688Dist, 8698963, 8702559)
+# plotHeatMap(mel1688Dist, 12794971, 12797970)
+# plotHeatMap(mel1688Dist, 2114248, 2119890)
+
+plotAllArrays(mel1688Dist, mel1688Clust)
+
+for(i in 1:(nrow(maurspClust)-1)){
+  plotHeatMap(maurspDist, maurspClust$V8[i], as.numeric(maurspClust$V11[i]))
+}
+
+```
+
+
+
+
+
